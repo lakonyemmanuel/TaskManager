@@ -8,88 +8,129 @@ datasource db {
 }
 
 model User {
-  id        Int    @id @default(autoincrement())
-  firstname String
-  lastName  String
-  email     String @unique
-  password  String
+  id            String   @id @default(uuid())
+  firstname     String
+  lastName      String
+  email         String   @unique
+  password      String
+  avatarUrl     String?
+  bio           String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   workspaceMembers WorkspaceMember[]
   assignedTasks    Task[]            @relation("AssignedTasks")
   comments         TaskComment[]
   activityLogs     ActivityLog[]
+  notifications    Notification[]
+  attachments      Attachment[]
 }
 
 model Workspace {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tasks   Task[]
-  members WorkspaceMember[]
+  tasks         Task[]
+  members       WorkspaceMember[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
 }
 
 model WorkspaceMember {
-  id          Int      @id @default(autoincrement())
-  userId      Int
+  id          String        @id @default(uuid())
+  userId      String
   workspaceId String
-  role        UserRole @default(MEMBER)
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(TODO)
-  dueDate     DateTime?
-
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  priority     TaskPriority @default(MEDIUM)
+  status       TaskStatus   @default(TODO)
+  dueDate      DateTime?
   workspaceId  String
-  assignedToId Int?
+  assignedToId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  assignedTo User? @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
-
-  comments TaskComment[]
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignedTo  User?         @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+  comments    TaskComment[]
+  attachments Attachment[]
+  activityLogs ActivityLog[]
 }
 
 model TaskComment {
-  id      String @id @default(cuid())
-  content String
-
-  taskId   String
-  authorId Int
-
+  id        String   @id @default(uuid())
+  content   String
+  taskId    String
+  authorId  String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model ActivityLog {
-  id        String   @id @default(cuid())
-  action    String
-  userId    Int
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  action     String
+  entityType String?
+  entityId   String?
+  userId     String
+  workspaceId String?
+  taskId     String?
+  createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task      Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
-enum UserRole {
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  workspaceId String?
+  taskId      String?
+  type        NotificationType
+  message     String
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Attachment {
+  id         String   @id @default(uuid())
+  fileName   String
+  fileUrl    String
+  fileType   String
+  size       Int
+  taskId     String
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+}
+
+enum WorkspaceRole {
   OWNER
   ADMIN
-  MANAGER
   MEMBER
 }
 
@@ -97,7 +138,7 @@ enum TaskPriority {
   LOW
   MEDIUM
   HIGH
-  URGENT
+  CRITICAL
 }
 
 enum TaskStatus {
@@ -105,4 +146,13 @@ enum TaskStatus {
   IN_PROGRESS
   REVIEW
   COMPLETED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMMENTED
+  TASK_UPDATED
+  TASK_DELETED
+  WORKSPACE_INVITED
+  DUE_DATE_REMINDER
 }

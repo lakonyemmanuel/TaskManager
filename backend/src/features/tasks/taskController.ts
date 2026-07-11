@@ -1,0 +1,117 @@
+import { Request, Response } from "express";
+import prisma from "../../lib/prisma.js";
+import { createActivityLog } from "../../utils/activity.js";
+
+export const listTasks = async (req: Request, res: Response) => {
+    try {
+        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+
+        const workspaceId = req.query.workspaceId as string | undefined;
+        const tasks = await prisma.task.findMany({
+            where: workspaceId ? { workspaceId } : {},
+            include: { assignedTo: true, workspace: true },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return res.status(200).json({ tasks });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const createTask = async (req: Request, res: Response) => {
+    try {
+        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+
+        const { title, description, priority, status, workspaceId, assignedToId, dueDate } = req.body;
+        if (!title || !workspaceId) {
+            return res.status(400).json({ message: "Title and workspaceId are required" });
+        }
+
+        const task = await prisma.task.create({
+            data: {
+                title,
+                description,
+                priority: priority || "MEDIUM",
+                status: status || "TODO",
+                workspaceId,
+                assignedToId: assignedToId || null,
+                dueDate: dueDate ? new Date(dueDate) : null,
+            },
+        });
+
+        await createActivityLog({ userId: authUser.id, action: `Created task ${task.title}`, workspaceId, taskId: task.id });
+
+        return res.status(201).json({ task });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const updateTask = async (req: Request, res: Response) => {
+    try {
+        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+
+        const idParam = req.params.id;
+        const id = Array.isArray(idParam) ? idParam[0] : idParam;
+        if (!id) {
+            return res.status(400).json({ message: "Task id is required" });
+        }
+
+        const { title, description, priority, status, assignedToId, dueDate } = req.body;
+
+        const task = await prisma.task.update({
+            where: { id },
+            data: {
+                title,
+                description,
+                priority,
+                status,
+                assignedToId: assignedToId || null,
+                dueDate: dueDate ? new Date(dueDate) : null,
+            },
+        });
+
+        await createActivityLog({ userId: authUser.id, action: `Updated task ${task.title}`, workspaceId: task.workspaceId, taskId: task.id });
+
+        return res.status(200).json({ task });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const deleteTask = async (req: Request, res: Response) => {
+    try {
+        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+
+        const idParam = req.params.id;
+        const id = Array.isArray(idParam) ? idParam[0] : idParam;
+        if (!id) {
+            return res.status(400).json({ message: "Task id is required" });
+        }
+
+        const task = await prisma.task.delete({ where: { id } });
+
+        await createActivityLog({ userId: authUser.id, action: `Deleted task ${task.title}`, workspaceId: task.workspaceId, taskId: task.id });
+
+        return res.status(200).json({ message: "Task deleted" });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
