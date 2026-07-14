@@ -141,3 +141,5 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+# Bwat per-workspace permission allowlist
+.bwat/

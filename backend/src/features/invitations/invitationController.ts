@@ -11,9 +11,14 @@ export const inviteByEmail = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Authentication required" });
         }
 
-        const { email, workspaceId } = req.body;
+        const { email, workspaceId, role } = req.body;
         if (!email || !workspaceId) {
             return res.status(400).json({ message: "Email and workspaceId are required" });
+        }
+
+        const inviteRole = role || "MEMBER";
+        if (!["MEMBER", "ADMIN"].includes(inviteRole)) {
+            return res.status(400).json({ message: "Role must be MEMBER or ADMIN" });
         }
 
         // Check the inviter is an OWNER or ADMIN of the workspace
@@ -56,7 +61,6 @@ export const inviteByEmail = async (req: Request, res: Response) => {
 
         let invitation;
         if (existingInvitation) {
-            // Re-activate a previously cancelled/expired invitation
             invitation = await prisma.workspaceInvitation.update({
                 where: { id: existingInvitation.id },
                 data: {
@@ -64,6 +68,7 @@ export const inviteByEmail = async (req: Request, res: Response) => {
                     expiresAt,
                     status: "PENDING",
                     invitedById: authUser.id,
+                    role: inviteRole as "MEMBER" | "ADMIN",
                 },
             });
         } else {
@@ -74,6 +79,7 @@ export const inviteByEmail = async (req: Request, res: Response) => {
                     invitedById: authUser.id,
                     token,
                     expiresAt,
+                    role: inviteRole as "MEMBER" | "ADMIN",
                 },
             });
         }
@@ -153,12 +159,12 @@ export const acceptInvitation = async (req: Request, res: Response) => {
             return res.status(403).json({ message: "This invitation was sent to a different email address" });
         }
 
-        // Create the workspace membership
+        // Create the workspace membership with the invitation's role
         await prisma.workspaceMember.create({
             data: {
                 userId: authUser.id,
                 workspaceId: invitation.workspaceId,
-                role: "MEMBER",
+                role: invitation.role,
             },
         });
 

@@ -792,3 +792,428 @@
     display: none;
   }
 }
+
+/* ─── Calendar ─── */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.cal-nav strong {
+  font-size: 1rem;
+  min-width: 140px;
+  text-align: center;
+  color: #f1f5f9;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-header {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.cal-day:hover { background: #1c1f30; }
+.cal-day.empty { cursor: default; }
+.cal-day.empty:hover { background: none; }
+.cal-day.today { background: rgba(192, 132, 252, 0.15); color: #c084fc; font-weight: 700; }
+.cal-day.has-tasks { color: #e2e8f0; font-weight: 600; }
+
+.cal-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c084fc;
+  color: #0f0a1a;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+/* ─── Team / Members ─── */
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #0a0b12;
+  border: 1px solid #1e2030;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-info strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #f1f5f9;
+}
+
+.member-info span {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.role-badge {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.role-badge.owner { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.role-badge.admin { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+.role-badge.member { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+
+/* ─── Reports / Charts ─── */
+.donut-chart {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.donut-svg {
+  width: 120px;
+  height: 120px;
+}
+
+.donut-bg {
+  fill: none;
+  stroke: #1e2030;
+  stroke-width: 3;
+}
+
+.donut-fill {
+  fill: none;
+  stroke: #c084fc;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s;
+}
+
+.donut-text {
+  fill: #f1f5f9;
+  font-size: 0.4rem;
+  text-anchor: middle;
+  font-weight: 700;
+}
+
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar-label {
+  width: 90px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #1e2030;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s;
+}
+
+.bar-value {
+  width: 28px;
+  text-align: right;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+/* ─── Task list (My Tasks page) ─── */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0a0b12;
+  border: 1px solid #1e2030;
+}
+
+.task-list-info { flex: 1; min-width: 0; }
+.task-list-info strong { display: block; font-size: 0.88rem; color: #f1f5f9; }
+.task-list-info > span { font-size: 0.78rem; color: #64748b; }
+
+.task-list-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.task-list-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-list-actions select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #2a2d3e;
+  background: #0a0b12;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  outline: none;
+}
+
+/* ─── Priority / Status badges ─── */
+.priority-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.priority-badge.low { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+.priority-badge.medium { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+.priority-badge.high { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.priority-badge.critical { background: rgba(248, 113, 113, 0.12); color: #f87171; }
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.status-badge.todo { background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+.status-badge.in_progress { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+.status-badge.review { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.status-badge.completed { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+
+/* ─── Recent task items ─── */
+.recent-task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #1e2030;
+  font-size: 0.84rem;
+}
+
+.recent-task-item:last-child { border-bottom: none; }
+.recent-task-item strong { flex: 1; color: #f1f5f9; }
+.recent-task-item span { color: #64748b; font-size: 0.78rem; }
+
+/* ─── Settings ─── */
+.theme-previews {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.theme-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+
+.theme-swatch:hover { transform: scale(1.1); }
+.theme-swatch.active { border-color: #f1f5f9; }
+
+.swatch-purple { background: #c084fc; }
+.swatch-blue { background: #38bdf8; }
+.swatch-green { background: #34d399; }
+.swatch-orange { background: #fb923c; }
+
+textarea {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #2a2d3e;
+  background: #0a0b12;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+textarea:focus { border-color: #a78bfa; }
+
+/* ─── Notification bell ─── */
+.notif-bell {
+  position: relative;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.notif-bell:hover { background: #1c1f30; }
+
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f87171;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.notif-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 300px;
+  background: #11131f;
+  border: 1px solid #1e2030;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  padding: 10px;
+  margin-top: 6px;
+}
+
+.notif-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid #1e2030;
+  margin-bottom: 8px;
+}
+
+.notif-dropdown-header strong { font-size: 0.85rem; color: #f1f5f9; }
+
+.notif-item {
+  padding: 8px 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  border-radius: 4px;
+}
+
+.notif-item.unread { color: #e2e8f0; background: rgba(192, 132, 252, 0.05); }
+
+/* ─── Topbar avatar ─── */
+.topbar-avatar {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.topbar-avatar:hover { opacity: 0.8; }
+
+.accept-btn { background: #c084fc !important; color: #0f0a1a !important; }
+.danger-btn { background: rgba(248, 113, 113, 0.15) !important; color: #fca5a5 !important; }
+.primary-btn { background: #c084fc !important; color: #0f0a1a !important; }
+
+/* ─── Theme color variants ─── */
+[data-theme="blue"] .nav-item.active,
+[data-theme="blue"] .workspace-chip.active { color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
+[data-theme="blue"] .workspace-chip.active { border-color: rgba(56, 189, 248, 0.3); }
+[data-theme="blue"] .sidebar-avatar { background: #38bdf8; }
+[data-theme="blue"] .eyebrow { color: #38bdf8; }
+[data-theme="blue"] .invite-banner { border-color: rgba(56, 189, 248, 0.25); }
+[data-theme="blue"] .invite-banner h3 { color: #bae6fd; }
+[data-theme="blue"] .auth-form input:focus { border-color: #38bdf8; }
+[data-theme="blue"] .stack-form input:focus,
+[data-theme="blue"] .stack-form select:focus { border-color: #38bdf8; }
+
+[data-theme="green"] .nav-item.active,
+[data-theme="green"] .workspace-chip.active { color: #34d399; background: rgba(52, 211, 153, 0.12); }
+[data-theme="green"] .workspace-chip.active { border-color: rgba(52, 211, 153, 0.3); }
+[data-theme="green"] .sidebar-avatar { background: #34d399; }
+[data-theme="green"] .eyebrow { color: #34d399; }
+[data-theme="green"] .invite-banner { border-color: rgba(52, 211, 153, 0.25); }
+[data-theme="green"] .invite-banner h3 { color: #a7f3d0; }
+[data-theme="green"] .auth-form input:focus { border-color: #34d399; }
+[data-theme="green"] .stack-form input:focus,
+[data-theme="green"] .stack-form select:focus { border-color: #34d399; }
+
+[data-theme="orange"] .nav-item.active,
+[data-theme="orange"] .workspace-chip.active { color: #fb923c; background: rgba(251, 146, 60, 0.12); }
+[data-theme="orange"] .workspace-chip.active { border-color: rgba(251, 146, 60, 0.3); }
+[data-theme="orange"] .sidebar-avatar { background: #fb923c; }
+[data-theme="orange"] .eyebrow { color: #fb923c; }
+[data-theme="orange"] .invite-banner { border-color: rgba(251, 146, 60, 0.25); }
+[data-theme="orange"] .invite-banner h3 { color: #fed7aa; }
+[data-theme="orange"] .auth-form input:focus { border-color: #fb923c; }
+[data-theme="orange"] .stack-form input:focus,
+[data-theme="orange"] .stack-form select:focus { border-color: #fb923c; }
+
+/* ─── Font variants ─── */
+[data-font="serif"] { --font-body: 'Georgia', 'Times New Roman', serif; }
+[data-font="mono"] { --font-body: 'ui-monospace', 'Consolas', monospace; }
+[data-font="default"] { --font-body: system-ui, 'Segoe UI', Roboto, sans-serif; }
+
+.dashboard-shell { font-family: var(--font-body, system-ui, 'Segoe UI', Roboto, sans-serif); }

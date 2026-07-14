@@ -10,6 +10,7 @@ export const listTasks = async (req: Request, res: Response) => {
         }
 
         const workspaceId = req.query.workspaceId as string | undefined;
+        const assignedToId = req.query.assignedToId as string | undefined;
         const userWorkspaceMemberships = await prisma.workspaceMember.findMany({
             where: { userId: authUser.id },
             select: { workspaceId: true },
@@ -21,9 +22,12 @@ export const listTasks = async (req: Request, res: Response) => {
             return res.status(403).json({ message: "You are not a member of this workspace" });
         }
 
-        const where = workspaceId
+        const where: Record<string, unknown> = workspaceId
             ? { workspaceId }
             : { workspaceId: { in: userWorkspaceIds } };
+        if (assignedToId) {
+            where.assignedToId = assignedToId;
+        }
         const tasks = await prisma.task.findMany({
             where,
             include: { assignedTo: { select: { id: true, firstname: true, lastName: true, email: true } }, workspace: true },

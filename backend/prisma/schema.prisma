@@ -16,15 +16,16 @@ model User {
   avatarUrl     String?
   bio           String?
   isActive      Boolean  @default(true)
+  language      String   @default("en")
+  fontStyle     String   @default("default")
+  colorTheme    String   @default("purple")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   workspaceMembers WorkspaceMember[]
   assignedTasks    Task[]            @relation("AssignedTasks")
-  comments         TaskComment[]
   activityLogs     ActivityLog[]
   notifications    Notification[]
-  attachments      Attachment[]
   workspaceInvitations WorkspaceInvitation[] @relation("InvitedBy")
 }
 
@@ -70,21 +71,7 @@ model Task {
 
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   assignedTo  User?         @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
-  comments    TaskComment[]
-  attachments Attachment[]
   activityLogs ActivityLog[]
-}
-
-model TaskComment {
-  id        String   @id @default(uuid())
-  content   String
-  taskId    String
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model ActivityLog {
@@ -123,6 +110,7 @@ model WorkspaceInvitation {
   invitedById String
   token       String            @unique
   status      InvitationStatus  @default(PENDING)
+  role        WorkspaceRole     @default(MEMBER)
   expiresAt   DateTime
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -138,20 +126,6 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   CANCELLED
-}
-
-model Attachment {
-  id         String   @id @default(uuid())
-  fileName   String
-  fileUrl    String
-  fileType   String
-  size       Int
-  taskId     String
-  uploadedBy String
-  createdAt  DateTime @default(now())
-
-  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  uploader User @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 }
 
 enum WorkspaceRole {

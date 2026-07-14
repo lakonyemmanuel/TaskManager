@@ -4,11 +4,10 @@ import dotenv from "dotenv";
 import authRoutes from "./features/auth/authRoutes.js";
 import workspaceRoutes from "./features/workspaces/workspaceRoutes.js";
 import taskRoutes from "./features/tasks/taskRoutes.js";
-import commentRoutes from "./features/comments/commentRoutes.js";
 import notificationRoutes from "./features/notifications/notificationRoutes.js";
 import reportRoutes from "./features/reports/reportRoutes.js";
 import invitationRoutes from "./features/invitations/invitationRoutes.js";
-import activityRoutes from "./routes/activityRoutes.js";
+import settingsRoutes from "./features/settings/settingsRoutes.js";
 import { errorHandler } from "./shared/errorHandler.js";
 
 dotenv.config();
@@ -41,11 +40,10 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/tasks", taskRoutes);
-app.use("/api/comments", commentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/invitations", invitationRoutes);
-app.use("/api/activity", activityRoutes);
+app.use("/api/settings", settingsRoutes);
 
 app.use((_req, res) => {
     res.status(404).json({ message: "Route not found" });
