@@ -219,7 +219,8 @@ button:hover {
 }
 
 .comment-list,
-.activity-list {
+.activity-list,
+.invitation-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -227,7 +228,8 @@ button:hover {
 }
 
 .comment-item,
-.activity-item {
+.activity-item,
+.invitation-item {
   padding: 10px 12px;
   border-radius: 10px;
   background: #1e293b;
@@ -237,6 +239,13 @@ button:hover {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+.invitation-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
 }
 
 @media (max-width: 900px) {

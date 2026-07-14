@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "prebuild": "npm run prisma:generate",
     "build": "tsc",
     "start": "node dist/server.js",
+    "test": "node --import tsx --test tests/*.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },

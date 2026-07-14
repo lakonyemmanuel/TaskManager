@@ -1,4 +1,5 @@
-import { type FormEvent, useEffect, useState } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import './App.css'
 
 type Mode = 'login' | 'register'
@@ -14,6 +15,21 @@ type Workspace = {
   id: string
   name: string
   description?: string | null
+  members?: WorkspaceMember[]
+}
+
+type WorkspaceMember = {
+  id: string
+  userId: string
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+}
+
+type WorkspaceInvitation = {
+  id: string
+  email: string
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
+  createdAt: string
+  expiresAt: string
 }
 
 type Task = {
@@ -39,7 +55,7 @@ type ActivityItem = {
 }
 
 type UserSession = {
-  id: number
+  id: string
   email: string
   firstname: string
   lastName: string
@@ -77,6 +93,9 @@ function App() {
   const [commentText, setCommentText] = useState('')
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [invitationToken, setInvitationToken] = useState('')
 
   const persistAuth = (accessToken: string, nextRefreshToken?: string | null) => {
     localStorage.setItem('taskmanager_token', accessToken)
@@ -99,7 +118,7 @@ function App() {
     setSelectedWorkspaceId('')
   }
 
-  const fetchJson = async (input: string, init?: RequestInit) => {
+  const fetchJson = useCallback(async (input: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const tokenToUse = authToken || localStorage.getItem('taskmanager_token')
 
@@ -138,31 +157,31 @@ function App() {
       throw new Error(data.message || 'Request failed')
     }
     return data
-  }
+  }, [authToken, refreshToken])
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const data = await fetchJson('/api/auth/me')
       setUser(data.user)
     } catch {
       setUser(null)
     }
-  }
+  }, [fetchJson])
 
-  const loadWorkspaces = async () => {
+  const loadWorkspaces = useCallback(async () => {
     try {
       const data = await fetchJson('/api/workspaces')
       const nextWorkspaces = data.workspaces || []
       setWorkspaces(nextWorkspaces)
-      if (!selectedWorkspaceId && nextWorkspaces.length) {
-        setSelectedWorkspaceId(nextWorkspaces[0].id)
-      }
+      setSelectedWorkspaceId((previousWorkspaceId) =>
+        previousWorkspaceId || (nextWorkspaces[0]?.id ?? ''),
+      )
     } catch {
       setWorkspaces([])
     }
-  }
+  }, [fetchJson])
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!selectedWorkspaceId) return
     try {
       const data = await fetchJson(`/api/tasks?workspaceId=${selectedWorkspaceId}`)
@@ -170,43 +189,61 @@ function App() {
     } catch {
       setTasks([])
     }
-  }
+  }, [fetchJson, selectedWorkspaceId])
 
-  const loadComments = async (taskId: string) => {
+  const loadComments = useCallback(async (taskId: string) => {
     try {
       const data = await fetchJson(`/api/comments/${taskId}`)
       setComments(data.comments || [])
     } catch {
       setComments([])
     }
-  }
+  }, [fetchJson])
 
-  const loadActivity = async () => {
+  const loadActivity = useCallback(async () => {
     try {
       const data = await fetchJson('/api/activity')
       setActivity(data.activity || [])
     } catch {
       setActivity([])
     }
-  }
+  }, [fetchJson])
+
+  const loadInvitations = useCallback(async () => {
+    if (!selectedWorkspaceId) {
+      setInvitations([])
+      return
+    }
+    try {
+      const data = await fetchJson(`/api/workspaces/${selectedWorkspaceId}/invitations`)
+      setInvitations(data.invitations || [])
+    } catch {
+      setInvitations([])
+    }
+  }, [fetchJson, selectedWorkspaceId])
 
   useEffect(() => {
     if (authToken) {
       void loadProfile()
       void loadWorkspaces()
       void loadActivity()
+      void loadInvitations()
     }
-  }, [authToken])
+  }, [authToken, loadActivity, loadInvitations, loadProfile, loadWorkspaces])
 
   useEffect(() => {
     void loadTasks()
-  }, [selectedWorkspaceId])
+  }, [loadTasks])
 
   useEffect(() => {
     if (selectedTaskId) {
       void loadComments(selectedTaskId)
     }
-  }, [selectedTaskId])
+  }, [loadComments, selectedTaskId])
+
+  useEffect(() => {
+    void loadInvitations()
+  }, [loadInvitations])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -330,6 +367,73 @@ function App() {
       setMessage(error instanceof Error ? error.message : 'Unable to add comment')
     }
   }
+
+  const handleInviteMember = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedWorkspaceId) return
+    try {
+      await fetchJson(`/api/workspaces/${selectedWorkspaceId}/invitations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail }),
+      })
+      setInviteEmail('')
+      await loadInvitations()
+      setMessage('Invitation sent')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to send invitation')
+    }
+  }
+
+  const handleResendInvitation = async (invitationId: string) => {
+    if (!selectedWorkspaceId) return
+    try {
+      await fetchJson(`/api/workspaces/${selectedWorkspaceId}/invitations/${invitationId}/resend`, {
+        method: 'POST',
+      })
+      await loadInvitations()
+      setMessage('Invitation resent')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to resend invitation')
+    }
+  }
+
+  const handleRevokeInvitation = async (invitationId: string) => {
+    if (!selectedWorkspaceId) return
+    try {
+      await fetchJson(`/api/workspaces/${selectedWorkspaceId}/invitations/${invitationId}/revoke`, {
+        method: 'POST',
+      })
+      await loadInvitations()
+      setMessage('Invitation revoked')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to revoke invitation')
+    }
+  }
+
+  const handleAcceptInvitation = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    try {
+      await fetchJson('/api/workspaces/invitations/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: invitationToken }),
+      })
+      setInvitationToken('')
+      await loadWorkspaces()
+      await loadInvitations()
+      setMessage('Invitation accepted')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to accept invitation')
+    }
+  }
+
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
+  const canManageInvites = Boolean(
+    selectedWorkspace &&
+    user &&
+    selectedWorkspace.members?.some((member) => member.userId === user.id && member.role === 'OWNER'),
+  )
 
   const logout = () => {
     clearSession()
@@ -480,6 +584,64 @@ function App() {
               </button>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="panel-grid">
+        <div className="panel">
+          <h2>Workspace invitations</h2>
+          {canManageInvites ? (
+            <>
+              <form className="stack-form" onSubmit={handleInviteMember}>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="member@company.com"
+                  required
+                />
+                <button type="submit" disabled={!selectedWorkspaceId}>Invite member</button>
+              </form>
+              <div className="invitation-list">
+                {invitations.length === 0 ? (
+                  <p className="empty-column">No invitations yet</p>
+                ) : (
+                  invitations.map((invitation) => (
+                    <article key={invitation.id} className="invitation-item">
+                      <div>
+                        <strong>{invitation.email}</strong>
+                        <p className="task-meta">Status: {invitation.status}</p>
+                      </div>
+                      {invitation.status === 'PENDING' && (
+                        <div className="task-actions">
+                          <button type="button" className="mini-btn" onClick={() => handleResendInvitation(invitation.id)}>
+                            Resend
+                          </button>
+                          <button type="button" className="mini-btn" onClick={() => handleRevokeInvitation(invitation.id)}>
+                            Revoke
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="empty-column">Only workspace owners can invite and manage members.</p>
+          )}
+        </div>
+        <div className="panel">
+          <h2>Accept invite</h2>
+          <form className="stack-form" onSubmit={handleAcceptInvitation}>
+            <input
+              value={invitationToken}
+              onChange={(event) => setInvitationToken(event.target.value)}
+              placeholder="Paste invitation token"
+              required
+            />
+            <button type="submit">Accept invitation</button>
+          </form>
         </div>
       </section>
 

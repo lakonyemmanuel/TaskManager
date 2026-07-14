@@ -20,6 +20,8 @@ model User {
   updatedAt     DateTime @updatedAt
 
   workspaceMembers WorkspaceMember[]
+  sentInvitations  WorkspaceInvitation[] @relation("WorkspaceInvitationInvitedBy")
+  acceptedInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationAcceptedBy")
   assignedTasks    Task[]            @relation("AssignedTasks")
   comments         TaskComment[]
   activityLogs     ActivityLog[]
@@ -36,6 +38,7 @@ model Workspace {
 
   tasks         Task[]
   members       WorkspaceMember[]
+  invitations   WorkspaceInvitation[]
   activityLogs  ActivityLog[]
   notifications Notification[]
 }
@@ -52,6 +55,27 @@ model WorkspaceMember {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workspaceId])
+}
+
+model WorkspaceInvitation {
+  id           String                   @id @default(uuid())
+  workspaceId  String
+  invitedById  String
+  acceptedById String?
+  email        String
+  tokenHash    String                   @unique
+  status       WorkspaceInvitationStatus @default(PENDING)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy  User      @relation("WorkspaceInvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy User?     @relation("WorkspaceInvitationAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, expiresAt])
+  @@index([email, status, expiresAt])
 }
 
 model Task {
@@ -155,4 +179,11 @@ enum NotificationType {
   TASK_DELETED
   WORKSPACE_INVITED
   DUE_DATE_REMINDER
+}
+
+enum WorkspaceInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
 }
