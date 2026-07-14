@@ -4,8 +4,10 @@ import { authenticate } from "../../middleware/authMiddleware.js";
 import { validateBody } from "../../shared/validation.js";
 import { createTaskSchema, updateTaskSchema } from "./taskSchemas.js";
 import { asyncHandler } from "../../shared/asyncHandler.js";
+import { rateLimit } from "../../middleware/rateLimit.js";
 
 const router = express.Router();
+router.use(rateLimit);
 
 router.get("/", authenticate, asyncHandler(listTasks));
 router.post("/", authenticate, validateBody(createTaskSchema), asyncHandler(createTask));

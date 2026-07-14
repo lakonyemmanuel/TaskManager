@@ -4,8 +4,10 @@ import { authenticate } from "../../middleware/authMiddleware.js";
 import { validateBody } from "../../shared/validation.js";
 import { loginSchema, refreshSchema, registerSchema } from "./authSchemas.js";
 import { asyncHandler } from "../../shared/asyncHandler.js";
+import { rateLimit } from "../../middleware/rateLimit.js";
 
 const router = express.Router();
+router.use(rateLimit);
 
 router.post("/register", validateBody(registerSchema), asyncHandler(register));
 router.post("/login", validateBody(loginSchema), asyncHandler(login));
