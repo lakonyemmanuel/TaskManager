@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import './App.css'
 
 type Mode = 'login' | 'register'
@@ -78,7 +78,7 @@ function App() {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
-  const persistAuth = (accessToken: string, nextRefreshToken?: string | null) => {
+  const persistAuth = useCallback((accessToken: string, nextRefreshToken?: string | null) => {
     localStorage.setItem('taskmanager_token', accessToken)
     setAuthToken(accessToken)
 
@@ -86,9 +86,9 @@ function App() {
       localStorage.setItem('taskmanager_refresh_token', nextRefreshToken)
       setRefreshToken(nextRefreshToken)
     }
-  }
+  }, [])
 
-  const clearSession = () => {
+  const clearSession = useCallback(() => {
     localStorage.removeItem('taskmanager_token')
     localStorage.removeItem('taskmanager_refresh_token')
     setAuthToken(null)
@@ -97,9 +97,9 @@ function App() {
     setWorkspaces([])
     setTasks([])
     setSelectedWorkspaceId('')
-  }
+  }, [])
 
-  const fetchJson = async (input: string, init?: RequestInit) => {
+  const fetchJson = useCallback(async (input: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const tokenToUse = authToken || localStorage.getItem('taskmanager_token')
 
@@ -138,18 +138,18 @@ function App() {
       throw new Error(data.message || 'Request failed')
     }
     return data
-  }
+  }, [authToken, clearSession, persistAuth, refreshToken])
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const data = await fetchJson('/api/auth/me')
       setUser(data.user)
     } catch {
       setUser(null)
     }
-  }
+  }, [fetchJson])
 
-  const loadWorkspaces = async () => {
+  const loadWorkspaces = useCallback(async () => {
     try {
       const data = await fetchJson('/api/workspaces')
       const nextWorkspaces = data.workspaces || []
@@ -160,9 +160,9 @@ function App() {
     } catch {
       setWorkspaces([])
     }
-  }
+  }, [fetchJson, selectedWorkspaceId])
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!selectedWorkspaceId) return
     try {
       const data = await fetchJson(`/api/tasks?workspaceId=${selectedWorkspaceId}`)
@@ -170,25 +170,25 @@ function App() {
     } catch {
       setTasks([])
     }
-  }
+  }, [fetchJson, selectedWorkspaceId])
 
-  const loadComments = async (taskId: string) => {
+  const loadComments = useCallback(async (taskId: string) => {
     try {
       const data = await fetchJson(`/api/comments/${taskId}`)
       setComments(data.comments || [])
     } catch {
       setComments([])
     }
-  }
+  }, [fetchJson])
 
-  const loadActivity = async () => {
+  const loadActivity = useCallback(async () => {
     try {
       const data = await fetchJson('/api/activity')
       setActivity(data.activity || [])
     } catch {
       setActivity([])
     }
-  }
+  }, [fetchJson])
 
   useEffect(() => {
     if (authToken) {
@@ -199,14 +199,14 @@ function App() {
       }, 0)
       return () => window.clearTimeout(timer)
     }
-  }, [authToken])
+  }, [authToken, loadActivity, loadProfile, loadWorkspaces])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadTasks()
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [selectedWorkspaceId])
+  }, [selectedWorkspaceId, loadTasks])
 
   useEffect(() => {
     if (selectedTaskId) {
@@ -215,7 +215,7 @@ function App() {
       }, 0)
       return () => window.clearTimeout(timer)
     }
-  }, [selectedTaskId])
+  }, [selectedTaskId, loadComments])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
