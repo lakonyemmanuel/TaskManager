@@ -192,19 +192,28 @@ function App() {
 
   useEffect(() => {
     if (authToken) {
-      void loadProfile()
-      void loadWorkspaces()
-      void loadActivity()
+      const timer = window.setTimeout(() => {
+        void loadProfile()
+        void loadWorkspaces()
+        void loadActivity()
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
   }, [authToken])
 
   useEffect(() => {
-    void loadTasks()
+    const timer = window.setTimeout(() => {
+      void loadTasks()
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [selectedWorkspaceId])
 
   useEffect(() => {
     if (selectedTaskId) {
-      void loadComments(selectedTaskId)
+      const timer = window.setTimeout(() => {
+        void loadComments(selectedTaskId)
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
   }, [selectedTaskId])
 
