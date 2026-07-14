@@ -7,6 +7,8 @@ import taskRoutes from "./features/tasks/taskRoutes.js";
 import commentRoutes from "./features/comments/commentRoutes.js";
 import notificationRoutes from "./features/notifications/notificationRoutes.js";
 import reportRoutes from "./features/reports/reportRoutes.js";
+import invitationRoutes from "./features/invitations/invitationRoutes.js";
+import activityRoutes from "./routes/activityRoutes.js";
 import { errorHandler } from "./shared/errorHandler.js";
 
 dotenv.config();
@@ -42,6 +44,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/invitations", invitationRoutes);
+app.use("/api/activity", activityRoutes);
 
 app.use((_req, res) => {
     res.status(404).json({ message: "Route not found" });

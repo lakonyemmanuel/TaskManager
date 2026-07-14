@@ -38,8 +38,18 @@ type ActivityItem = {
   createdAt: string
 }
 
+type Invitation = {
+  id: string
+  email: string
+  workspaceId: string
+  token: string
+  status: string
+  expiresAt: string
+  workspace?: { id: string; name: string }
+}
+
 type UserSession = {
-  id: number
+  id: string
   email: string
   firstname: string
   lastName: string
@@ -77,6 +87,9 @@ function App() {
   const [commentText, setCommentText] = useState('')
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [myInvitations, setMyInvitations] = useState<Invitation[]>([])
+  const [workspaceInvitations, setWorkspaceInvitations] = useState<Invitation[]>([])
 
   const persistAuth = (accessToken: string, nextRefreshToken?: string | null) => {
     localStorage.setItem('taskmanager_token', accessToken)
@@ -190,16 +203,78 @@ function App() {
     }
   }
 
+  const loadMyInvitations = async () => {
+    try {
+      const data = await fetchJson('/api/invitations/mine')
+      setMyInvitations(data.invitations || [])
+    } catch {
+      setMyInvitations([])
+    }
+  }
+
+  const loadWorkspaceInvitations = async () => {
+    if (!selectedWorkspaceId) return
+    try {
+      const data = await fetchJson(`/api/invitations/workspace/${selectedWorkspaceId}`)
+      setWorkspaceInvitations(data.invitations || [])
+    } catch {
+      setWorkspaceInvitations([])
+    }
+  }
+
+  const handleInviteMember = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedWorkspaceId) return
+    try {
+      await fetchJson('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, workspaceId: selectedWorkspaceId }),
+      })
+      setInviteEmail('')
+      setMessage('Invitation sent')
+      await loadWorkspaceInvitations()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to send invitation')
+    }
+  }
+
+  const handleAcceptInvitation = async (token: string) => {
+    try {
+      const data = await fetchJson(`/api/invitations/${token}/accept`, { method: 'POST' })
+      setMessage(data.message || 'Joined workspace')
+      await loadMyInvitations()
+      await loadWorkspaces()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to accept invitation')
+    }
+  }
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await fetchJson(`/api/invitations/${invitationId}`, { method: 'DELETE' })
+      setMessage('Invitation cancelled')
+      await loadWorkspaceInvitations()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to cancel invitation')
+    }
+  }
+
   useEffect(() => {
     if (authToken) {
       void loadProfile()
       void loadWorkspaces()
       void loadActivity()
+      void loadMyInvitations()
     }
   }, [authToken])
 
   useEffect(() => {
     void loadTasks()
+  }, [selectedWorkspaceId])
+
+  useEffect(() => {
+    void loadWorkspaceInvitations()
   }, [selectedWorkspaceId])
 
   useEffect(() => {
@@ -447,6 +522,20 @@ function App() {
         </div>
       </header>
 
+      {myInvitations.length > 0 && (
+        <section className="panel" style={{ marginBottom: 16 }}>
+          <h2>Pending workspace invitations</h2>
+          {myInvitations.map((inv) => (
+            <div key={inv.id} style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10 }}>
+              <span>You've been invited to join <strong>{inv.workspace?.name || 'a workspace'}</strong></span>
+              <button type="button" className="mini-btn" style={{ background: '#38bdf8', color: '#082f49' }} onClick={() => handleAcceptInvitation(inv.token)}>
+                Accept
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="panel-grid">
         <div className="panel">
           <h2>Create workspace</h2>
@@ -480,6 +569,41 @@ function App() {
               </button>
             ))}
           </div>
+
+          {selectedWorkspaceId && (
+            <div style={{ marginTop: 16 }}>
+              <h3>Invite member</h3>
+              <form className="stack-form" onSubmit={handleInviteMember} style={{ marginTop: 8 }}>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Email address"
+                  required
+                />
+                <button type="submit">Send invitation</button>
+              </form>
+
+              {workspaceInvitations.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <h3>Pending invitations</h3>
+                  {workspaceInvitations.filter((inv) => inv.status === 'PENDING').map((inv) => (
+                    <div key={inv.id} className="activity-item" style={{ marginTop: 8 }}>
+                      <span>{inv.email}</span>
+                      <button
+                        type="button"
+                        className="mini-btn"
+                        style={{ background: '#ef4444', color: '#fff' }}
+                        onClick={() => handleCancelInvitation(inv.id)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -501,7 +625,7 @@ function App() {
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
             <option value="HIGH">High</option>
-            <option value="URGENT">Urgent</option>
+            <option value="CRITICAL">Critical</option>
           </select>
           <input type="date" value={taskDueDate} onChange={(event) => setTaskDueDate(event.target.value)} />
           <button type="submit" disabled={!selectedWorkspaceId}>Add task</button>

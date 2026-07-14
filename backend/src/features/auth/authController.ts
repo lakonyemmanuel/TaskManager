@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import prisma from "../../lib/prisma.js";
-import { signAccessToken, signRefreshToken } from "../../utils/auth.js";
+import { signAccessToken, signRefreshToken, verifyToken } from "../../utils/auth.js";
 import { createActivityLog } from "../../utils/activity.js";
 
 export const register = async (req: Request, res: Response) => {
@@ -89,6 +89,35 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
+export const refresh = async (req: Request, res: Response) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token is required" });
+        }
+
+        const payload = verifyToken(refreshToken);
+        if (payload.type !== "refresh") {
+            return res.status(401).json({ message: "Invalid refresh token" });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: payload.id },
+            select: { id: true, email: true },
+        });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const accessToken = signAccessToken({ id: user.id, email: user.email });
+
+        return res.status(200).json({ accessToken });
+    } catch (error) {
+        console.error(error);
+        return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+};
+
 export const me = async (req: Request, res: Response) => {
     try {
         const authUser = (req as Request & { user?: { id: string; email: string } }).user;
@@ -96,7 +125,20 @@ export const me = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Authentication required" });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: authUser.id } });
+        const user = await prisma.user.findUnique({
+            where: { id: authUser.id },
+            select: {
+                id: true,
+                firstname: true,
+                lastName: true,
+                email: true,
+                avatarUrl: true,
+                bio: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }

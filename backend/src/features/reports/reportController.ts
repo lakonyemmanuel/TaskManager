@@ -8,7 +8,14 @@ export const getReports = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Authentication required" });
         }
 
+        const userWorkspaceMemberships = await prisma.workspaceMember.findMany({
+            where: { userId: authUser.id },
+            select: { workspaceId: true },
+        });
+        const userWorkspaceIds = userWorkspaceMemberships.map((w) => w.workspaceId);
+
         const tasks = await prisma.task.findMany({
+            where: { workspaceId: { in: userWorkspaceIds } },
             include: { workspace: true },
         });
 

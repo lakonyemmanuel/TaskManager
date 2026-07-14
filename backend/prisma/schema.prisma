@@ -25,6 +25,7 @@ model User {
   activityLogs     ActivityLog[]
   notifications    Notification[]
   attachments      Attachment[]
+  workspaceInvitations WorkspaceInvitation[] @relation("InvitedBy")
 }
 
 model Workspace {
@@ -36,6 +37,7 @@ model Workspace {
 
   tasks         Task[]
   members       WorkspaceMember[]
+  invitations   WorkspaceInvitation[]
   activityLogs  ActivityLog[]
   notifications Notification[]
 }
@@ -112,6 +114,30 @@ model Notification {
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceInvitation {
+  id          String            @id @default(uuid())
+  email       String
+  workspaceId String
+  invitedById String
+  token       String            @unique
+  status      InvitationStatus  @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User     @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([email, workspaceId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
 
 model Attachment {

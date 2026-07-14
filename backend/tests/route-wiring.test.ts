@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import authRoutes from "../src/features/auth/authRoutes.ts";
-import activityRoutes from "../src/features/activity/activityRoutes.ts";
+import authRoutes from "../src/features/auth/authRoutes.js";
+import activityRoutes from "../src/routes/activityRoutes.js";
 
 const getRoutePaths = (router: { stack?: Array<{ route?: { path?: string; methods?: Record<string, unknown> } }> }) =>
     (router.stack || [])

@@ -18,7 +18,7 @@ export const listComments = async (req: Request, res: Response) => {
         const comments = await prisma.taskComment.findMany({
             where: { taskId },
             orderBy: { createdAt: "asc" },
-            include: { author: true },
+            include: { author: { select: { id: true, firstname: true, lastName: true, email: true } } },
         });
 
         return res.status(200).json({ comments });
@@ -46,7 +46,7 @@ export const createComment = async (req: Request, res: Response) => {
                 taskId,
                 authorId: authUser.id,
             },
-            include: { author: true },
+            include: { author: { select: { id: true, firstname: true, lastName: true, email: true } } },
         });
 
         await createActivityLog({ userId: authUser.id, action: `Commented on task ${taskId}`, taskId });
