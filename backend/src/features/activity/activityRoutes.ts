@@ -1,10 +1,10 @@
 import express from "express";
-import { listNotifications } from "./notificationController.js";
+import { listActivity } from "./activityController.js";
 import { authenticate } from "../../middleware/authMiddleware.js";
 import { asyncHandler } from "../../shared/asyncHandler.js";
 
 const router = express.Router();
 
-router.get("/", authenticate, asyncHandler(listNotifications));
+router.get("/", authenticate, asyncHandler(listActivity));
 
 export default router;

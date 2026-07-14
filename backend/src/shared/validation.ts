@@ -5,7 +5,12 @@ export const validateBody = (schema: { safeParse: (value: unknown) => { success:
         const result = schema.safeParse(req.body) as { success: boolean; error?: { issues?: Array<{ message: string }> }; data?: unknown };
 
         if (!result.success) {
-            return res.status(400).json({ message: result.error?.issues?.[0]?.message || "Validation failed" });
+            return res.status(400).json({
+                error: {
+                    message: result.error?.issues?.[0]?.message || "Validation failed",
+                    code: "VALIDATION_ERROR",
+                },
+            });
         }
 
         req.body = result.data as Record<string, unknown>;

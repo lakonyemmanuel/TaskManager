@@ -1,59 +1,65 @@
 import { Request, Response } from "express";
 import prisma from "../../lib/prisma.js";
 import { createActivityLog } from "../../utils/activity.js";
+import { HttpError } from "../../shared/httpError.js";
 
 export const listComments = async (req: Request, res: Response) => {
-    try {
-        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
-        if (!authUser) {
-            return res.status(401).json({ message: "Authentication required" });
-        }
+  const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+  if (!authUser) {
+    throw new HttpError(401, "Authentication required");
+  }
 
-        const taskIdParam = req.params.taskId;
-        const taskId = Array.isArray(taskIdParam) ? taskIdParam[0] : taskIdParam;
-        if (!taskId) {
-            return res.status(400).json({ message: "Task id is required" });
-        }
+  const taskIdParam = req.params.taskId;
+  const taskId = Array.isArray(taskIdParam) ? taskIdParam[0] : taskIdParam;
+  if (!taskId) {
+    throw new HttpError(400, "Task id is required");
+  }
 
-        const comments = await prisma.taskComment.findMany({
-            where: { taskId },
-            orderBy: { createdAt: "asc" },
-            include: { author: true },
-        });
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { workspace: { include: { members: true } } },
+  });
 
-        return res.status(200).json({ comments });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Server error" });
-    }
+  if (!task || !task.workspace.members.some((member) => member.userId === authUser.id)) {
+    throw new HttpError(403, "You are not allowed to view comments for this task");
+  }
+
+  const comments = await prisma.taskComment.findMany({
+    where: { taskId },
+    orderBy: { createdAt: "asc" },
+    include: { author: true },
+  });
+
+  return res.status(200).json({ comments });
 };
 
 export const createComment = async (req: Request, res: Response) => {
-    try {
-        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
-        if (!authUser) {
-            return res.status(401).json({ message: "Authentication required" });
-        }
+  const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+  if (!authUser) {
+    throw new HttpError(401, "Authentication required");
+  }
 
-        const { taskId, content } = req.body;
-        if (!taskId || !content) {
-            return res.status(400).json({ message: "Task id and content are required" });
-        }
+  const { taskId, content } = req.body;
 
-        const comment = await prisma.taskComment.create({
-            data: {
-                content,
-                taskId,
-                authorId: authUser.id,
-            },
-            include: { author: true },
-        });
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { workspace: { include: { members: true } } },
+  });
 
-        await createActivityLog({ userId: authUser.id, action: `Commented on task ${taskId}`, taskId });
+  if (!task || !task.workspace.members.some((member) => member.userId === authUser.id)) {
+    throw new HttpError(403, "You are not allowed to comment on this task");
+  }
 
-        return res.status(201).json({ comment });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Server error" });
-    }
+  const comment = await prisma.taskComment.create({
+    data: {
+      content,
+      taskId,
+      authorId: authUser.id,
+    },
+    include: { author: true },
+  });
+
+  await createActivityLog({ userId: authUser.id, action: `Commented on task ${taskId}`, taskId });
+
+  return res.status(201).json({ comment });
 };

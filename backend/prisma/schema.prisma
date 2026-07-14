@@ -71,6 +71,11 @@ model Task {
   comments    TaskComment[]
   attachments Attachment[]
   activityLogs ActivityLog[]
+
+  @@index([workspaceId, status])
+  @@index([assignedToId, status])
+  @@index([dueDate, status])
+  @@index([createdAt])
 }
 
 model TaskComment {
@@ -83,6 +88,8 @@ model TaskComment {
 
   task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 }
 
 model ActivityLog {
@@ -98,6 +105,10 @@ model ActivityLog {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   task      Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([taskId, createdAt])
 }
 
 model Notification {
@@ -112,6 +123,8 @@ model Notification {
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
 }
 
 model Attachment {

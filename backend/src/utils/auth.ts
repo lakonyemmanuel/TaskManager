@@ -1,22 +1,20 @@
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "development-secret";
+import { env } from "../config/env.js";
 
 export type AuthTokenPayload = {
-    id: string;
-    email: string;
-    type?: "access" | "refresh";
+  id: string;
+  email: string;
+  type?: "access" | "refresh";
 };
 
 export const signAccessToken = (user: { id: string; email: string }) =>
-    jwt.sign({ id: user.id, email: user.email, type: "access" }, JWT_SECRET, {
-        expiresIn: "15m",
-    });
+  jwt.sign({ id: user.id, email: user.email, type: "access" }, env.JWT_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+  });
 
 export const signRefreshToken = (user: { id: string; email: string }) =>
-    jwt.sign({ id: user.id, email: user.email, type: "refresh" }, JWT_SECRET, {
-        expiresIn: "7d",
-    });
+  jwt.sign({ id: user.id, email: user.email, type: "refresh" }, env.JWT_SECRET, {
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+  });
 
-export const verifyToken = (token: string) =>
-    jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
+export const verifyToken = (token: string) => jwt.verify(token, env.JWT_SECRET) as AuthTokenPayload;

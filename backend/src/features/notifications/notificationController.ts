@@ -1,21 +1,17 @@
 import { Request, Response } from "express";
 import prisma from "../../lib/prisma.js";
+import { HttpError } from "../../shared/httpError.js";
 
 export const listNotifications = async (req: Request, res: Response) => {
-    try {
-        const authUser = (req as Request & { user?: { id: string; email: string } }).user;
-        if (!authUser) {
-            return res.status(401).json({ message: "Authentication required" });
-        }
+  const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+  if (!authUser) {
+    throw new HttpError(401, "Authentication required");
+  }
 
-        const notifications = await prisma.notification.findMany({
-            where: { userId: authUser.id },
-            orderBy: { createdAt: "desc" },
-        });
+  const notifications = await prisma.notification.findMany({
+    where: { userId: authUser.id },
+    orderBy: { createdAt: "desc" },
+  });
 
-        return res.status(200).json({ notifications });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Server error" });
-    }
+  return res.status(200).json({ notifications });
 };

@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import './App.css'
+import { createApiClient } from './shared/api/client'
 
 type Mode = 'login' | 'register'
 
@@ -99,46 +100,21 @@ function App() {
     setSelectedWorkspaceId('')
   }, [])
 
+  const apiClient = useCallback(() => createApiClient({
+    getAccessToken: () => authToken || localStorage.getItem('taskmanager_token'),
+    getRefreshToken: () => refreshToken || localStorage.getItem('taskmanager_refresh_token'),
+    onTokenRefreshed: (nextAccessToken, nextRefreshToken) => {
+      persistAuth(nextAccessToken, nextRefreshToken)
+    },
+    onSessionExpired: () => {
+      clearSession()
+      setSessionNotice('Your session expired. Please sign in again.')
+    },
+  }), [authToken, clearSession, persistAuth, refreshToken])
+
   const fetchJson = useCallback(async (input: string, init?: RequestInit) => {
-    const headers = new Headers(init?.headers)
-    const tokenToUse = authToken || localStorage.getItem('taskmanager_token')
-
-    if (tokenToUse) {
-      headers.set('Authorization', `Bearer ${tokenToUse}`)
-    }
-
-    let response = await fetch(input, { ...init, headers })
-
-    if (response.status === 401 && refreshToken) {
-      try {
-        const refreshResponse = await fetch('/api/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        })
-
-        const refreshData = await refreshResponse.json().catch(() => ({}))
-
-        if (refreshResponse.ok && refreshData.accessToken) {
-          persistAuth(refreshData.accessToken, refreshToken)
-          headers.set('Authorization', `Bearer ${refreshData.accessToken}`)
-          response = await fetch(input, { ...init, headers })
-        } else {
-          throw new Error(refreshData.message || 'Session expired')
-        }
-      } catch {
-        clearSession()
-        setSessionNotice('Your session expired. Please sign in again.')
-        throw new Error('Session expired. Please sign in again.')
-      }
-    }
-
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(data.message || 'Request failed')
-    }
-    return data
-  }, [authToken, clearSession, persistAuth, refreshToken])
+    return apiClient().request(input, init)
+  }, [apiClient])
 
   const loadProfile = useCallback(async () => {
     try {
@@ -245,7 +221,7 @@ function App() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
+        throw new Error(data?.message || data?.error?.message || 'Request failed')
       }
 
       const token = data.accessToken || data.token
