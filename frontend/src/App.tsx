@@ -32,12 +32,6 @@ type Comment = {
   taskId: string
 }
 
-type ActivityItem = {
-  id: string
-  action: string
-  createdAt: string
-}
-
 type Invitation = {
   id: string
   email: string
@@ -63,11 +57,13 @@ const initialForm: FormState = {
 }
 
 const statusColumns = ['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED']
+type NavPage = 'tasks' | 'workspace'
 
 function App() {
   const [mode, setMode] = useState<Mode>('login')
   const [form, setForm] = useState<FormState>(initialForm)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'info' | 'success' | 'error'>('info')
   const [loading, setLoading] = useState(false)
   const [sessionNotice, setSessionNotice] = useState('')
   const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('taskmanager_token'))
@@ -85,16 +81,20 @@ function App() {
   const [taskFilter, setTaskFilter] = useState('ALL')
   const [comments, setComments] = useState<Comment[]>([])
   const [commentText, setCommentText] = useState('')
-  const [activity, setActivity] = useState<ActivityItem[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [myInvitations, setMyInvitations] = useState<Invitation[]>([])
   const [workspaceInvitations, setWorkspaceInvitations] = useState<Invitation[]>([])
+  const [navPage, setNavPage] = useState<NavPage>('tasks')
+
+  const showMessage = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setMessage(msg)
+    setMessageType(type)
+  }
 
   const persistAuth = (accessToken: string, nextRefreshToken?: string | null) => {
     localStorage.setItem('taskmanager_token', accessToken)
     setAuthToken(accessToken)
-
     if (nextRefreshToken) {
       localStorage.setItem('taskmanager_refresh_token', nextRefreshToken)
       setRefreshToken(nextRefreshToken)
@@ -129,7 +129,6 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
         })
-
         const refreshData = await refreshResponse.json().catch(() => ({}))
 
         if (refreshResponse.ok && refreshData.accessToken) {
@@ -194,15 +193,6 @@ function App() {
     }
   }
 
-  const loadActivity = async () => {
-    try {
-      const data = await fetchJson('/api/activity')
-      setActivity(data.activity || [])
-    } catch {
-      setActivity([])
-    }
-  }
-
   const loadMyInvitations = async () => {
     try {
       const data = await fetchJson('/api/invitations/mine')
@@ -222,49 +212,10 @@ function App() {
     }
   }
 
-  const handleInviteMember = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!selectedWorkspaceId) return
-    try {
-      await fetchJson('/api/invitations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, workspaceId: selectedWorkspaceId }),
-      })
-      setInviteEmail('')
-      setMessage('Invitation sent')
-      await loadWorkspaceInvitations()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to send invitation')
-    }
-  }
-
-  const handleAcceptInvitation = async (token: string) => {
-    try {
-      const data = await fetchJson(`/api/invitations/${token}/accept`, { method: 'POST' })
-      setMessage(data.message || 'Joined workspace')
-      await loadMyInvitations()
-      await loadWorkspaces()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to accept invitation')
-    }
-  }
-
-  const handleCancelInvitation = async (invitationId: string) => {
-    try {
-      await fetchJson(`/api/invitations/${invitationId}`, { method: 'DELETE' })
-      setMessage('Invitation cancelled')
-      await loadWorkspaceInvitations()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to cancel invitation')
-    }
-  }
-
   useEffect(() => {
     if (authToken) {
       void loadProfile()
       void loadWorkspaces()
-      void loadActivity()
       void loadMyInvitations()
     }
   }, [authToken])
@@ -290,16 +241,8 @@ function App() {
 
     const payload =
       mode === 'register'
-        ? {
-          firstname: form.firstname,
-          lastName: form.lastName,
-          email: form.email,
-          password: form.password,
-        }
-        : {
-          email: form.email,
-          password: form.password,
-        }
+        ? { firstname: form.firstname, lastName: form.lastName, email: form.email, password: form.password }
+        : { email: form.email, password: form.password }
 
     try {
       const response = await fetch(`/api/auth/${mode === 'register' ? 'register' : 'login'}`, {
@@ -307,20 +250,15 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
+      if (!response.ok) throw new Error(data.message || 'Request failed')
 
       const token = data.accessToken || data.token
       const nextRefreshToken = data.refreshToken
-      if (token) {
-        persistAuth(token, nextRefreshToken)
-      }
+      if (token) persistAuth(token, nextRefreshToken)
 
-      setMessage(data.message || 'Success')
+      showMessage(data.message || 'Success', 'success')
       setSessionNotice('')
 
       if (mode === 'register') {
@@ -328,7 +266,7 @@ function App() {
         setForm(initialForm)
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Something went wrong')
+      showMessage(error instanceof Error ? error.message : 'Something went wrong', 'error')
     } finally {
       setLoading(false)
     }
@@ -346,9 +284,9 @@ function App() {
       setWorkspaceDescription('')
       setSelectedWorkspaceId(data.workspace.id)
       await loadWorkspaces()
-      setMessage('Workspace created')
+      showMessage('Workspace created', 'success')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to create workspace')
+      showMessage(error instanceof Error ? error.message : 'Unable to create workspace', 'error')
     }
   }
 
@@ -371,9 +309,9 @@ function App() {
       setTaskPriority('MEDIUM')
       setTaskDueDate('')
       await loadTasks()
-      setMessage('Task added')
+      showMessage('Task added', 'success')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to create task')
+      showMessage(error instanceof Error ? error.message : 'Unable to create task', 'error')
     }
   }
 
@@ -386,7 +324,7 @@ function App() {
       })
       await loadTasks()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to update task')
+      showMessage(error instanceof Error ? error.message : 'Unable to update task', 'error')
     }
   }
 
@@ -402,7 +340,45 @@ function App() {
       setCommentText('')
       await loadComments(selectedTaskId)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to add comment')
+      showMessage(error instanceof Error ? error.message : 'Unable to add comment', 'error')
+    }
+  }
+
+  const handleInviteMember = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedWorkspaceId) return
+    try {
+      const data = await fetchJson('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, workspaceId: selectedWorkspaceId }),
+      })
+      setInviteEmail('')
+      showMessage(data.message || 'Invitation sent', 'success')
+      await loadWorkspaceInvitations()
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Unable to send invitation', 'error')
+    }
+  }
+
+  const handleAcceptInvitation = async (token: string) => {
+    try {
+      const data = await fetchJson(`/api/invitations/${token}/accept`, { method: 'POST' })
+      showMessage(data.message || 'Joined workspace', 'success')
+      await loadMyInvitations()
+      await loadWorkspaces()
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Unable to accept invitation', 'error')
+    }
+  }
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await fetchJson(`/api/invitations/${invitationId}`, { method: 'DELETE' })
+      showMessage('Invitation cancelled', 'info')
+      await loadWorkspaceInvitations()
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : 'Unable to cancel invitation', 'error')
     }
   }
 
@@ -411,28 +387,20 @@ function App() {
     setSessionNotice('You have been signed out.')
   }
 
+  const selectedWs = workspaces.find((w) => w.id === selectedWorkspaceId)
+
+  // ─── Auth screen ───
   if (!authToken || !user) {
     return (
       <main className="auth-shell">
         <section className="auth-card">
           <div className="auth-header">
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => {
-                setMode('login')
-                setMessage('')
-                setSessionNotice('')
-              }}
-            >
-              ← Back
-            </button>
             <p className="eyebrow">TaskManager</p>
-            <h1>{mode === 'login' ? 'Sign in to your workspace' : 'Create your account'}</h1>
+            <h1>{mode === 'login' ? 'Sign in' : 'Create account'}</h1>
             <p>
               {mode === 'login'
                 ? 'Use your email and password to continue.'
-                : 'Register quickly and start organizing your tasks.'}
+                : 'Register to start organizing your tasks.'}
             </p>
           </div>
 
@@ -443,7 +411,7 @@ function App() {
                   First name
                   <input
                     value={form.firstname}
-                    onChange={(event) => setForm({ ...form, firstname: event.target.value })}
+                    onChange={(e) => setForm({ ...form, firstname: e.target.value })}
                     required
                   />
                 </label>
@@ -451,7 +419,7 @@ function App() {
                   Last name
                   <input
                     value={form.lastName}
-                    onChange={(event) => setForm({ ...form, lastName: event.target.value })}
+                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                     required
                   />
                 </label>
@@ -463,7 +431,7 @@ function App() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
             </label>
@@ -473,7 +441,7 @@ function App() {
               <input
                 type="password"
                 value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
             </label>
@@ -488,242 +456,360 @@ function App() {
             <button
               type="button"
               className="link-button"
-              onClick={() => {
-                setMode(mode === 'login' ? 'register' : 'login')
-                setMessage('')
-              }}
+              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setMessage(''); }}
             >
               {mode === 'login' ? 'Create one' : 'Sign in'}
             </button>
           </p>
 
-          {sessionNotice && <p className="feedback">{sessionNotice}</p>}
+          {sessionNotice && <p className="token-status">{sessionNotice}</p>}
           {message && <p className="feedback">{message}</p>}
         </section>
       </main>
     )
   }
 
+  // ─── Dashboard ───
   return (
     <main className="dashboard-shell">
-      <header className="dashboard-header">
-        <div>
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
           <p className="eyebrow">TaskManager</p>
-          <h1>Welcome back, {user.firstname}</h1>
-          <p>Organize work, track progress, and keep your team moving.</p>
+          <h2>{user.firstname} {user.lastName}</h2>
+          <p>{selectedWs?.name || 'No workspace'}</p>
         </div>
-        <div className="header-actions">
-          <button type="button" className="secondary-btn" onClick={() => window.history.back()}>
-            ← Back
-          </button>
-          <button type="button" className="secondary-btn" onClick={logout}>
-            Logout
-          </button>
-        </div>
-      </header>
 
-      {myInvitations.length > 0 && (
-        <section className="panel" style={{ marginBottom: 16 }}>
-          <h2>Pending workspace invitations</h2>
-          {myInvitations.map((inv) => (
-            <div key={inv.id} style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10 }}>
-              <span>You've been invited to join <strong>{inv.workspace?.name || 'a workspace'}</strong></span>
-              <button type="button" className="mini-btn" style={{ background: '#38bdf8', color: '#082f49' }} onClick={() => handleAcceptInvitation(inv.token)}>
-                Accept
-              </button>
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">Navigation</div>
+
+          <button
+            className={`nav-item ${navPage === 'tasks' ? 'active' : ''}`}
+            onClick={() => setNavPage('tasks')}
+          >
+            <span className="nav-icon">&#9776;</span>
+            <span>Tasks</span>
+          </button>
+
+          <button
+            className={`nav-item ${navPage === 'workspace' ? 'active' : ''}`}
+            onClick={() => setNavPage('workspace')}
+          >
+            <span className="nav-icon">&#9881;</span>
+            <span>Workspace</span>
+          </button>
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">
+              {user.firstname.charAt(0).toUpperCase()}
             </div>
-          ))}
-        </section>
-      )}
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user.firstname}</div>
+              <div className="sidebar-user-email">{user.email}</div>
+            </div>
+          </div>
+          <button className="logout-btn" onClick={logout} title="Sign out">
+            &#10140;
+          </button>
+        </div>
+      </aside>
 
-      <section className="panel-grid">
-        <div className="panel">
-          <h2>Create workspace</h2>
-          <form className="stack-form" onSubmit={handleCreateWorkspace}>
-            <input
-              value={workspaceName}
-              onChange={(event) => setWorkspaceName(event.target.value)}
-              placeholder="Workspace name"
-              required
-            />
-            <input
-              value={workspaceDescription}
-              onChange={(event) => setWorkspaceDescription(event.target.value)}
-              placeholder="Optional description"
-            />
-            <button type="submit">Add workspace</button>
-          </form>
+      {/* Main area */}
+      <div className="main-area">
+        <div className="main-topbar">
+          <div>
+            <h1>
+              {navPage === 'tasks' ? 'Tasks' : 'Workspace Settings'}
+            </h1>
+            <p>
+              {navPage === 'tasks'
+                ? 'Manage and track your tasks across columns.'
+                : 'Manage your workspace and invite members.'}
+            </p>
+          </div>
+          <div className="main-topbar-actions">
+            <div className="workspace-selector">
+              {workspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  type="button"
+                  className={`workspace-chip ${selectedWorkspaceId === ws.id ? 'active' : ''}`}
+                  onClick={() => setSelectedWorkspaceId(ws.id)}
+                >
+                  {ws.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="panel">
-          <h2>Your workspaces</h2>
-          <div className="workspace-list">
-            {workspaces.map((workspace) => (
-              <button
-                key={workspace.id}
-                type="button"
-                className={`workspace-chip ${selectedWorkspaceId === workspace.id ? 'active' : ''}`}
-                onClick={() => setSelectedWorkspaceId(workspace.id)}
-              >
-                {workspace.name}
-              </button>
-            ))}
-          </div>
+        <div className="main-content">
+          {/* Pending invitation banner */}
+          {myInvitations.length > 0 && (
+            <div className="invite-banner">
+              <h3>Pending workspace invitations</h3>
+              {myInvitations.map((inv) => (
+                <div key={inv.id} className="invite-banner-item">
+                  <span>
+                    Join <strong>{inv.workspace?.name || 'a workspace'}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="mini-btn"
+                    style={{ background: '#c084fc', color: '#0f0a1a' }}
+                    onClick={() => handleAcceptInvitation(inv.token)}
+                  >
+                    Accept
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {selectedWorkspaceId && (
-            <div style={{ marginTop: 16 }}>
-              <h3>Invite member</h3>
-              <form className="stack-form" onSubmit={handleInviteMember} style={{ marginTop: 8 }}>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Email address"
-                  required
-                />
-                <button type="submit">Send invitation</button>
-              </form>
+          {/* Message bar */}
+          {message && (
+            <div className={`message-bar ${messageType}`}>
+              {message}
+            </div>
+          )}
 
-              {workspaceInvitations.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <h3>Pending invitations</h3>
-                  {workspaceInvitations.filter((inv) => inv.status === 'PENDING').map((inv) => (
-                    <div key={inv.id} className="activity-item" style={{ marginTop: 8 }}>
-                      <span>{inv.email}</span>
-                      <button
-                        type="button"
-                        className="mini-btn"
-                        style={{ background: '#ef4444', color: '#fff' }}
-                        onClick={() => handleCancelInvitation(inv.id)}
-                      >
-                        Cancel
-                      </button>
+          {sessionNotice && <div className="message-bar info">{sessionNotice}</div>}
+
+          {/* ─── TASKS PAGE ─── */}
+          {navPage === 'tasks' && (
+            <>
+              {/* Add task + Task overview grid */}
+              <div className="dashboard-grid">
+                <div className="panel">
+                  <h2>Add task</h2>
+                  <form className="stack-form" onSubmit={handleCreateTask}>
+                    <input
+                      value={taskTitle}
+                      onChange={(e) => setTaskTitle(e.target.value)}
+                      placeholder="Task title"
+                      required
+                    />
+                    <input
+                      value={taskDescription}
+                      onChange={(e) => setTaskDescription(e.target.value)}
+                      placeholder="Task description"
+                    />
+                    <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)}>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="CRITICAL">Critical</option>
+                    </select>
+                    <input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
+                    <button type="submit" disabled={!selectedWorkspaceId}>Add task</button>
+                  </form>
+                </div>
+
+                <div className="panel">
+                  <h2>Task overview</h2>
+                  <select
+                    value={taskFilter}
+                    onChange={(e) => setTaskFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #2a2d3e',
+                      background: '#0a0b12',
+                      color: '#e2e8f0',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="ALL">All statuses</option>
+                    <option value="TODO">To Do</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="REVIEW">Review</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                  <div className="task-summary-grid">
+                    <div className="summary-card">
+                      <strong>{tasks.length}</strong>
+                      Total
                     </div>
+                    <div className="summary-card">
+                      <strong>{tasks.filter((t) => t.status === 'COMPLETED').length}</strong>
+                      Completed
+                    </div>
+                    <div className="summary-card">
+                      <strong>{tasks.filter((t) => t.status === 'IN_PROGRESS').length}</strong>
+                      In progress
+                    </div>
+                    <div className="summary-card">
+                      <strong>{tasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length}</strong>
+                      Overdue
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kanban board */}
+              <div className="kanban-board">
+                {statusColumns.map((status) => (
+                  <div key={status} className="kanban-column">
+                    <h3>{status.replace('_', ' ')}</h3>
+                    {tasks.filter(
+                      (task) => task.status === status && (taskFilter === 'ALL' || task.status === taskFilter)
+                    ).length === 0 ? (
+                      <p className="empty-column">No tasks</p>
+                    ) : (
+                      tasks
+                        .filter(
+                          (task) => task.status === status && (taskFilter === 'ALL' || task.status === taskFilter)
+                        )
+                        .map((task) => (
+                          <div key={task.id} className="task-card">
+                            <strong>{task.title}</strong>
+                            {task.description && <p>{task.description}</p>}
+                            <p className="task-meta">Priority: {task.priority}</p>
+                            {task.dueDate && <p className="task-meta">Due: {task.dueDate}</p>}
+                            <div className="task-actions">
+                              {statusColumns
+                                .filter((col) => col !== status)
+                                .map((nextStatus) => (
+                                  <button
+                                    key={nextStatus}
+                                    type="button"
+                                    className="mini-btn"
+                                    style={{ background: '#1c1f30', color: '#94a3b8' }}
+                                    onClick={() => handleMoveTask(task.id, nextStatus)}
+                                  >
+                                    {nextStatus.replace('_', ' ')}
+                                  </button>
+                                ))}
+                              <button
+                                type="button"
+                                className="mini-btn"
+                                style={{ background: '#1c1f30', color: '#94a3b8' }}
+                                onClick={() => setSelectedTaskId(task.id)}
+                              >
+                                Comments
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Comments section */}
+              <div className="panel comments-section">
+                <h2>Task discussions</h2>
+                {selectedTaskId ? (
+                  <>
+                    <form className="stack-form" onSubmit={handleAddComment}>
+                      <input
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Write a comment"
+                        required
+                      />
+                      <button type="submit">Add comment</button>
+                    </form>
+                    <div className="comment-list">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="comment-item">
+                          {comment.content}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ color: '#475569', fontSize: '0.85rem', padding: '8px 0' }}>
+                    Select a task to view comments
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ─── WORKSPACE PAGE ─── */}
+          {navPage === 'workspace' && (
+            <div className="dashboard-grid">
+              <div className="panel">
+                <h2>Create workspace</h2>
+                <form className="stack-form" onSubmit={handleCreateWorkspace}>
+                  <input
+                    value={workspaceName}
+                    onChange={(e) => setWorkspaceName(e.target.value)}
+                    placeholder="Workspace name"
+                    required
+                  />
+                  <input
+                    value={workspaceDescription}
+                    onChange={(e) => setWorkspaceDescription(e.target.value)}
+                    placeholder="Optional description"
+                  />
+                  <button type="submit">Add workspace</button>
+                </form>
+              </div>
+
+              <div className="panel">
+                <h2>Your workspaces</h2>
+                <div className="workspace-list">
+                  {workspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      type="button"
+                      className={`workspace-chip ${selectedWorkspaceId === ws.id ? 'active' : ''}`}
+                      onClick={() => setSelectedWorkspaceId(ws.id)}
+                    >
+                      {ws.name}
+                    </button>
                   ))}
                 </div>
-              )}
+
+                {selectedWorkspaceId && (
+                  <div className="invite-section">
+                    <h3>Invite a member</h3>
+                    <form className="stack-form" onSubmit={handleInviteMember}>
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="colleague@company.com"
+                        required
+                      />
+                      <button type="submit">Send invite</button>
+                    </form>
+
+                    {workspaceInvitations.filter((inv) => inv.status === 'PENDING').length > 0 && (
+                      <div>
+                        <h3 style={{ marginTop: 16 }}>Pending invitations</h3>
+                        <div className="invite-list">
+                          {workspaceInvitations
+                            .filter((inv) => inv.status === 'PENDING')
+                            .map((inv) => (
+                              <div key={inv.id} className="invite-item">
+                                <span>{inv.email}</span>
+                                <button
+                                  type="button"
+                                  className="mini-btn"
+                                  style={{ background: 'rgba(248,113,113,0.15)', color: '#fca5a5' }}
+                                  onClick={() => handleCancelInvitation(inv.id)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
-      </section>
-
-      <section className="panel">
-        <h2>Add task</h2>
-        <form className="stack-form" onSubmit={handleCreateTask}>
-          <input
-            value={taskTitle}
-            onChange={(event) => setTaskTitle(event.target.value)}
-            placeholder="Task title"
-            required
-          />
-          <input
-            value={taskDescription}
-            onChange={(event) => setTaskDescription(event.target.value)}
-            placeholder="Task description"
-          />
-          <select value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)}>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
-          </select>
-          <input type="date" value={taskDueDate} onChange={(event) => setTaskDueDate(event.target.value)} />
-          <button type="submit" disabled={!selectedWorkspaceId}>Add task</button>
-        </form>
-      </section>
-
-      <section className="panel">
-        <h2>Task overview</h2>
-        <select value={taskFilter} onChange={(event) => setTaskFilter(event.target.value)}>
-          <option value="ALL">All</option>
-          <option value="TODO">To Do</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="REVIEW">Review</option>
-          <option value="COMPLETED">Completed</option>
-        </select>
-        <div className="task-summary-grid">
-          <div className="summary-card">Total: {tasks.length}</div>
-          <div className="summary-card">Completed: {tasks.filter((task) => task.status === 'COMPLETED').length}</div>
-          <div className="summary-card">In progress: {tasks.filter((task) => task.status === 'IN_PROGRESS').length}</div>
-          <div className="summary-card">Overdue: {tasks.filter((task) => task.dueDate && new Date(task.dueDate) < new Date()).length}</div>
-        </div>
-      </section>
-
-      {sessionNotice && <p className="feedback">{sessionNotice}</p>}
-      {message && <p className="feedback">{message}</p>}
-
-      <section className="kanban-board">
-        {statusColumns.map((status) => (
-          <div key={status} className="kanban-column">
-            <h3>{status.replace('_', ' ')}</h3>
-            {tasks.filter((task) => task.status === status && (taskFilter === 'ALL' || task.status === taskFilter)).length === 0 ? (
-              <p className="empty-column">No tasks</p>
-            ) : (
-              tasks.filter((task) => task.status === status && (taskFilter === 'ALL' || task.status === taskFilter)).map((task) => (
-                <article key={task.id} className="task-card">
-                  <strong>{task.title}</strong>
-                  {task.description && <p>{task.description}</p>}
-                  <p className="task-meta">Priority: {task.priority}</p>
-                  {task.dueDate && <p className="task-meta">Due: {task.dueDate}</p>}
-                  <div className="task-actions">
-                    {statusColumns
-                      .filter((column) => column !== status)
-                      .map((nextStatus) => (
-                        <button
-                          key={nextStatus}
-                          type="button"
-                          className="mini-btn"
-                          onClick={() => handleMoveTask(task.id, nextStatus)}
-                        >
-                          Move to {nextStatus.replace('_', ' ')}
-                        </button>
-                      ))}
-                    <button type="button" className="mini-btn" onClick={() => setSelectedTaskId(task.id)}>
-                      Comments
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        ))}
-      </section>
-
-      <section className="panel comments-panel">
-        <h2>Task discussions</h2>
-        {selectedTaskId ? (
-          <>
-            <form className="stack-form" onSubmit={handleAddComment}>
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Write a comment"
-                required
-              />
-              <button type="submit">Add comment</button>
-            </form>
-            <div className="comment-list">
-              {comments.map((comment) => (
-                <div key={comment.id} className="comment-item">{comment.content}</div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="empty-column">Select a task to view comments</p>
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>Recent activity</h2>
-        <div className="activity-list">
-          {activity.map((item) => (
-            <div key={item.id} className="activity-item">
-              <span>{item.action}</span>
-              <small>{new Date(item.createdAt).toLocaleString()}</small>
-            </div>
-          ))}
-        </div>
-      </section>
+      </div>
     </main>
   )
 }
