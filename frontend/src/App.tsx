@@ -39,6 +39,9 @@ const translations: TranslationMap = {
   reports: { en: 'Reports', sw: 'Ripoti', fr: 'Rapports', ko: '리포트', es: 'Informes', zh: '报告', lg: 'Lipooti' },
   settings: { en: 'Settings', sw: 'Mipangilio', fr: 'Paramètres', ko: '설정', es: 'Ajustes', zh: '设置', lg: 'Enteeka' },
   signIn: { en: 'Sign in', sw: 'Ingia', fr: 'Connexion', ko: '로그인', es: 'Iniciar sesión', zh: '登录', lg: 'Yingira' },
+  morning: { en: 'Good morning', sw: 'Habari za asubuhi', fr: 'Bonjour', ko: '좋은 아침', es: 'Buenos días', zh: '早上好', lg: 'Wasuze otya' },
+  afternoon: { en: 'Good afternoon', sw: 'Habari za mchana', fr: 'Bon après-midi', ko: '좋은 오후', es: 'Buenas tardes', zh: '下午好', lg: 'Osiibye otya' },
+  evening: { en: 'Good evening', sw: 'Habari za jioni', fr: 'Bonsoir', ko: '좋은 저녁', es: 'Buenas noches', zh: '晚上好', lg: 'Osiibye otya' },
   createAccount: { en: 'Create account', sw: 'Tengeneza akaunti', fr: 'Créer un compte', ko: '계정 만들기', es: 'Crear cuenta', zh: '创建账户', lg: 'Tonda akaunti' },
   email: { en: 'Email', sw: 'Barua pepe', fr: 'Email', ko: '이메일', es: 'Correo', zh: '邮箱', lg: 'Imeyiro' },
   password: { en: 'Password', sw: 'Nywila', fr: 'Mot de passe', ko: '비밀번호', es: 'Contraseña', zh: '密码', lg: 'Kiyi' },
@@ -94,6 +97,14 @@ const translations: TranslationMap = {
   createOne: { en: 'Create one', sw: 'Tengeneza moja', fr: 'Créer un compte', ko: '만들기', es: 'Crear una', zh: '创建一个', lg: 'Tonda emu' },
   signInHere: { en: 'Sign in', sw: 'Ingia', fr: 'Se connecter', ko: '로그인', es: 'Iniciar sesión', zh: '登录', lg: 'Yingira' },
 }
+
+const greeting = (lang: string): string => {
+  const hour = new Date().getHours()
+  const key = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
+  return t(key, lang)
+}
+const FONTS = ['default', 'serif', 'mono', 'georgia', 'impact', 'comic', 'courier', 'fantasy', 'trebuchet']
+const COLORS = ['purple', 'blue', 'green', 'orange', 'red', 'pink', 'teal', 'yellow', 'indigo']
 
 function t(key: string, lang: string): string {
   return translations[key]?.[lang] || translations[key]?.['en'] || key
@@ -418,7 +429,7 @@ function App() {
       <main className="auth-shell">
         <section className="auth-card">
           <div className="auth-header">
-            <p className="eyebrow">TaskManager</p>
+            <p className="eyebrow">Taskly</p>
             <h1>{mode === 'login' ? t('signIn', settingsLang) : t('createAccount', settingsLang)}</h1>
             <p>{mode === 'login' ? `${t('email', settingsLang)} ${t('password', settingsLang).toLowerCase()}` : `Register to start organizing your tasks.`}</p>
           </div>
@@ -451,9 +462,9 @@ function App() {
     <main className={`dashboard-shell ${themeClass}`}>
       <aside className="sidebar">
         <div className="sidebar-header">
-          <p className="eyebrow">TaskManager</p>
+          <p className="eyebrow">Taskly</p>
           <h2>{user.firstname} {user.lastName}</h2>
-          <p>{selectedWs?.name || 'No workspace'}</p>
+          <p>{selectedWs?.name || t('overview', settingsLang)}</p>
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ page, icon }) => (
@@ -465,7 +476,11 @@ function App() {
         </nav>
         <div className="sidebar-footer">
           <div className="sidebar-user">
-            <div className="sidebar-avatar">{user.firstname.charAt(0).toUpperCase()}</div>
+            <div className="sidebar-avatar">
+              {user.avatarUrl
+                ? <img src={user.avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.textContent = user.firstname.charAt(0).toUpperCase() }} />
+                : user.firstname.charAt(0).toUpperCase()}
+            </div>
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user.firstname}</div>
               <div className="sidebar-user-email">{user.email}</div>
@@ -478,8 +493,8 @@ function App() {
       <div className="main-area">
         <div className="main-topbar">
           <div>
-            <h1>{navItems.find(n => n.page === navPage)?.label || 'Dashboard'}</h1>
-            <p>{selectedWs?.name || 'No workspace'} &middot; {workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}</p>
+            <h1>{greeting(settingsLang)}, {user.firstname}</h1>
+            <p>{selectedWs?.name || ''}</p>
           </div>
           <div className="main-topbar-actions">
             <div className="workspace-selector">
@@ -508,8 +523,12 @@ function App() {
                 </div>
               )}
             </div>
-            <div className="topbar-avatar" onClick={() => setNavPage('settings')} title="Profile settings">
-              <div className="sidebar-avatar">{user.firstname.charAt(0).toUpperCase()}</div>
+            <div className="topbar-avatar" onClick={() => setNavPage('settings')} title={t('settings', settingsLang)}>
+              <div className="sidebar-avatar">
+                {user.avatarUrl
+                  ? <img src={user.avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.textContent = user.firstname.charAt(0).toUpperCase() }} />
+                  : user.firstname.charAt(0).toUpperCase()}
+              </div>
             </div>
           </div>
         </div>
@@ -887,22 +906,17 @@ function App() {
                   <label>
                     {t('fontStyle', settingsLang)}
                     <select value={settingsFont} onChange={e => { setSettingsFont(e.target.value); document.documentElement.setAttribute('data-font', e.target.value) }}>
-                      <option value="default">Default</option>
-                      <option value="serif">Serif</option>
-                      <option value="mono">Monospace</option>
+                      {FONTS.map(f => <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>)}
                     </select>
                   </label>
                   <label>
                     {t('colorTheme', settingsLang)}
                     <select value={settingsColor} onChange={e => { setSettingsColor(e.target.value); document.documentElement.setAttribute('data-theme', e.target.value) }}>
-                      <option value="purple">Purple</option>
-                      <option value="blue">Blue</option>
-                      <option value="green">Green</option>
-                      <option value="orange">Orange</option>
+                      {COLORS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                     </select>
                   </label>
                   <div className="theme-previews">
-                    {['purple', 'blue', 'green', 'orange'].map(c => (
+                    {COLORS.map(c => (
                       <div key={c} className={`theme-swatch ${settingsColor === c ? 'active' : ''} swatch-${c}`}
                         onClick={() => { setSettingsColor(c); document.documentElement.setAttribute('data-theme', c) }} />
                     ))}
